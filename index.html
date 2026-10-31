@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- viewport: supaya tampilan pas di layar HP (kemungkinan besar dia buka dari HP) -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Happy Birthday!</title>
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  /* Warna dikumpulin di :root. Mau ganti tema? Cukup ubah 4 baris ini,
+     karena semua bagian lain memakai var(--nama) dari sini. */
+:root { --bg1:#f3e8ff; --bg2:#ddd0f7; --ink:#3b2457; --accent:#8e4fd8; }
+  * { box-sizing:border-box; margin:0; }
+  body { font-family:Poppins,system-ui,sans-serif; color:var(--ink); line-height:1.7; text-align:center;
+         background:linear-gradient(160deg,var(--bg1),var(--bg2)) fixed; }
+  /* section dibatasi 640px supaya teks nyaman dibaca di laptop, tapi tetap penuh di HP */
+  section { max-width:640px; margin:0 auto; padding:56px 20px; }
+  h1,h2 { font-family:"Dancing Script",cursive; color:var(--accent); line-height:1.15; }
+  h1 { font-size:clamp(2.6rem,11vw,4.6rem); }   /* clamp = ukuran otomatis menyesuaikan lebar layar */
+  h2 { font-size:2.2rem; margin-bottom:18px; }
+  .small { font-size:.9rem; letter-spacing:.15em; text-transform:uppercase; opacity:.7; }
+  button { font:inherit; font-weight:600; color:#fff; background:var(--accent); border:0; border-radius:999px;
+           padding:14px 28px; margin-top:24px; cursor:pointer; box-shadow:0 6px 18px #e0457b55; transition:transform .15s; }
+  button:hover { transform:scale(1.05); }
+  .card { background:#ffffffb3; border-radius:20px; padding:28px 22px; box-shadow:0 8px 30px #4a2b3d1a; }
+  #countdown { display:flex; gap:12px; justify-content:center; margin-top:28px; font-weight:600; }
+  #countdown div { background:#ffffffb3; border-radius:14px; padding:10px 14px; min-width:68px; }
+  #countdown b { display:block; font-size:1.6rem; color:var(--accent); }
+  /* Bagian kejutan disembunyikan dulu (display:none), baru muncul saat tombol diklik */
+  #surprise { display:none; }
+  #surprise.show { display:block; animation:fade 1s ease both; }
+  @keyframes fade { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:none; } }
+  #letter p { margin-bottom:14px; text-align:left; }
+  #reason { min-height:3.4em; font-size:1.15rem; }
+  /* grid auto-fit: foto otomatis jadi 2-3 kolom sesuai lebar layar, tanpa perlu media query */
+  #gallery { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+ #gallery img, .ph { width:100%; aspect-ratio:1; object-fit:cover; border-radius:12px; display:block; }
+#gallery figure { background:#ffffffb3; border-radius:16px; padding:8px 8px 12px; box-shadow:0 6px 20px #4a2b3d1a; }
+#gallery figcaption { margin-top:8px; font-size:.85rem; }
+  .ph { display:grid; place-items:center; background:#ffffff80; border:2px dashed var(--accent); font-size:.85rem; }
+  /* canvas confetti menutupi layar tapi pointer-events:none biar tombol di bawahnya tetap bisa diklik */
+  canvas { position:fixed; inset:0; pointer-events:none; }
+  footer { padding:30px 20px 50px; opacity:.7; font-size:.9rem; }
+
+  #gallery img { cursor:pointer; }                    /* kursor jadi tangan = tanda bisa diklik */
+#lightbox { position:fixed; inset:0; z-index:10; background:#1b0f16f2;
+            display:flex; align-items:center; justify-content:center; padding:16px; }
+#lightbox[hidden] { display:none; }                 /* wajib: display:flex di atas akan mengalahkan atribut hidden */
+#lightbox figure { max-width:900px; width:100%; max-height:100%; overflow:auto; color:#fff; }
+#lbImg { max-width:100%; max-height:62vh; border-radius:12px; display:block; margin:0 auto; }
+#lbTitle { font-family:"Dancing Script",cursive; font-size:1.8rem; color:#ffb3cd; margin-top:12px; }
+#lbStory { margin:6px 0 14px; }
+#lbDownload { display:inline-block; color:#fff; background:var(--accent); padding:10px 22px;
+              border-radius:999px; text-decoration:none; font-weight:600; }
+#lightbox .nav { position:absolute; margin:0; padding:0; width:46px; height:46px;
+                 font-size:1.6rem; background:#ffffff26; box-shadow:none; }
+#lbClose { top:14px; right:14px; }
+#lbPrev { left:10px; top:50%; transform:translateY(-50%); }
+#lbNext { right:10px; top:50%; transform:translateY(-50%); }
+</style>
+</head>
+<body>
+
+<!-- Kerangka halaman (HTML). Isi teksnya sengaja kosong: diisi otomatis oleh JavaScript dari CONFIG -->
+<section>
+  <p class="small" id="dateLabel"></p>
+  <h1 id="title"></h1>
+  <p id="subtitle"></p>
+  <div id="countdown"></div>
+  <button id="openBtn">Click me Py!</button>
+</section>
+
+<div id="surprise">
+  <section><div class="card" id="letter"><h2>A letter for you</h2></div></section>
+  <section>
+    <h2>Why I love you</h2>
+    <div class="card"><div id="reason">Tap the button below ♡</div><button id="reasonBtn">Tap for a reason ♡</button></div>
+  </section>
+  <section>
+    <h2>Your favorite song</h2>
+    <div class="card">
+      <p id="songTitle"></p>
+      <button id="songBtn">▶ Play</button>
+      <audio id="song" preload="none"></audio>
+    </div>
+  </section>
+
+  <section><h2>Our memories</h2><div id="gallery"></div></section>
+</div>
+
+
+
+
+<footer id="footer"></footer>
+<canvas id="confetti"></canvas>
+
+<!-- Lightbox: lapisan layar penuh yang muncul saat foto diklik. Awalnya hidden (tersembunyi) -->
+<div id="lightbox" hidden>
+  <button class="nav" id="lbClose" aria-label="Close">✕</button>
+  <button class="nav" id="lbPrev" aria-label="Previous">‹</button>
+  <figure>
+    <img id="lbImg" alt="">
+    <figcaption>
+      <h3 id="lbTitle"></h3>
+      <p id="lbStory"></p>
+      <a id="lbDownload" download>⬇ Download</a>
+    </figcaption>
+  </figure>
+  <button class="nav" id="lbNext" aria-label="Next">›</button>
+</div>
+
+
+
+<script>
+/* ============================================================
+   BAGIAN YANG KAMU GANTI: semua teks ada di sini.
+   Kenapa dikumpulin di satu tempat? Supaya kamu tidak perlu
+   mencari-cari teks di tengah kode HTML, cukup edit blok ini.
+   Tanda kutip "..." jangan dihapus, dan jangan lupa koma di akhir baris.
+   ============================================================ */
+
+   
+const CONFIG = {
+  name: "Victory",
+  nickname: "Py",
+  ageText: "17th",
+  birthday: "2026-11-01T00:00:00",   // format: tahun-bulan-tanggal T jam:menit:detik
+  dateLabel: "November 1",
+  subtitle: "To my Py, from far away, with all my love.",
+  letter: [                           // 1 baris = 1 paragraf. Tambah/hapus baris sesukamu.
+    "Dear Py,",
+    "Happy Sweet 17th Birthday to my favorite human! I know we're far apart, but know that I'm thinking of you and sending you all my love from here. I am so incredibly lucky to have you as my girlfriend. Today is all about celebrating you—the most beautiful, kind, and amazing girl I know. As you turn 17 and step closer to adulthood, I want you to remember that I'll always be by your side, cheering you on through every high and low. I hope this year brings you closer to all your dreams. I hope you have a wonderful day filled with love, laughter, and happiness. Happy birthday Py.",
+    "Love you always,",
+    "-Eight, your lucky boyfriend."
+  ],
+  reasons: [                          // contoh saja, ganti dengan alasan aslimu
+    "You make even ordinary days feel special.",
+    "You make me want to be a better person.",
+    "You are kind to everyone.",
+    "You are beautiful inside and out.",
+    "You are smart.",
+    "You are funny.",
+    "You laugh at my jokes even when they are not funny.",
+    "You make many masterpieces of art.",
+    "You want to talk to me even when you are tired.",
+    "You want to play with me.",
+    "I like your cute voice.",
+    "Your smile.",
+    "Your laugh.",
+    "I love when you fall asleep randomly without telling me.",
+    "I love you.",
+    "Because you are you, Victory."
+  ],
+  photos: 
+  ["photos/Me and Py.jpeg", 
+  "photos/Me and Py sitting.jpeg", 
+  "photos/Py and happy ghast.jpeg",
+  "photos/Py doing dark magic.jpeg",
+  "photos/Py doing T pose.jpeg",
+  "photos/Py riding skeleton horse.jpeg",
+  "photos/Py brushing sand.jpeg",
+  "photos/Py throwing trident at me.jpeg",
+  "photos/Me and Py going to the end.jpeg",
+  "photos/Me and Py done beating the ender dragon.jpeg",
+  "photos/Me and Py getting Elytra.jpeg",
+  "photos/Py doing T pose part 2.jpeg",
+  "photos/Py with many arrows.jpeg",
+  "photos/Pyzilla.jpeg",
+  "photos/Conduit.jpeg",
+  "photos/Searching Shipwreck.jpeg",
+  "photos/Me and Py riding Camel.jpeg",
+  "photos/Trial Chamber.jpeg",
+  ],
+
+stories: {   // opsional. Kunci = alamat foto persis seperti di daftar photos di atas
+  "photos/Pyzilla.jpeg": "XD.",
+  "photos/Py throwing trident at me.jpeg": "Hehe.",
+  "photos/Py doing T pose.jpeg": "T pose.",
+  "photos/Py doing T pose part 2.jpeg": "another T pose.",
+  "photos/Py and happy ghast.jpeg": "That's cute.",
+  "photos/Py brushing sand.jpeg": "Another cute thing that you are doing.",
+  "photos/Py riding skeleton horse.jpeg": "You are riding a skeleton horse, that's cute.",
+  "photos/Me and Py.jpeg": "Me and You.",
+  "photos/Me and Py sitting.jpeg": "Me and You sitting.",
+  "photos/Me and Py going to the end.jpeg": "We stacked.",
+  "photos/Me and Py done beating the ender dragon.jpeg": "Yeyyy.",
+  "photos/Me and Py getting Elytra.jpeg": "We got 2 Elytra, and this time the dragon head didn't fall to the void.",
+  "photos/Py with many arrows.jpeg": "Hehe, you are afking.",
+  "photos/Py doing dark magic.jpeg": "How do u reach that chest? XD.",
+  "photos/Conduit.jpeg": "We making the conduit.",
+  "photos/Searching Shipwreck.jpeg": "Lucky wolf.",
+  "photos/Me and Py riding Camel.jpeg": "First time me riding a camel hehe.",
+  "photos/Trial Chamber.jpeg": "hehe.",
+},
+
+  song: { title: " ", file: "music/tameless_territory.mp3" },
+
+  footer: "Made with ♡ for my Py"
+};
+
+
+
+
+/* ============ SELESAI. Di bawah ini cara kerjanya ============ */
+
+// Fungsi pendek untuk mengambil elemen berdasarkan id, biar kode di bawah tidak panjang
+const $ = id => document.getElementById(id); 
+
+// 1) Masukkan teks dari CONFIG ke halaman.
+//    Pakai textContent (bukan innerHTML) supaya karakter aneh seperti < atau & tidak merusak halaman.
+$("dateLabel").textContent = CONFIG.dateLabel;
+$("title").textContent = `Happy ${CONFIG.ageText} Birthday, ${CONFIG.name}!`;
+$("subtitle").textContent = CONFIG.subtitle;
+$("footer").textContent = CONFIG.footer;
+document.title = `Happy Birthday, ${CONFIG.nickname}!`;   // tulisan di tab browser
+
+// Satu elemen <p> dibuat untuk setiap baris di CONFIG.letter (forEach = ulangi untuk tiap item)
+CONFIG.letter.forEach(line => {
+  const p = document.createElement("p");
+  p.textContent = line;
+  $("letter").appendChild(p);
+});
+
+// Galeri: kalau belum ada foto, tampilkan 3 kotak kosong sebagai tempat foto
+// Mengubah alamat file jadi tulisan caption yang rapi
+function captionFrom(path) {
+  return path
+    .split("/").pop()          // ambil nama file saja: "photos/Pyzilla.jpeg" -> "Pyzilla.jpeg"
+    .replace(/\.[^.]+$/, "")   // buang ekstensi (.jpeg)
+    .replace(/\(\d+\)/g, "")   // buang nomor seperti (2)
+    .replace(/_/g, " ")        // underscore jadi spasi
+    .replace(/\s+/g, " ")      // spasi ganda jadi satu
+    .trim();
+}
+
+
+
+if (CONFIG.photos.length) {
+CONFIG.photos.forEach((src, index) => {
+  const caption = captionFrom(src);
+  const fig = document.createElement("figure");
+  const img = document.createElement("img");
+  img.src = src; img.alt = caption;
+  img.onclick = () => show(index);                  // klik foto -> buka lightbox foto ke-index
+  const cap = document.createElement("figcaption");
+  cap.textContent = caption;
+  fig.append(img, cap);
+  $("gallery").appendChild(fig);
+});
+} else {
+  for (let i = 0; i < 3; i++) {
+    const box = document.createElement("div");
+    box.className = "ph"; box.textContent = "Your photo here";
+    $("gallery").appendChild(box);
+  }
+}  // ===== Lightbox =====
+let current = 0;                                    // nomor foto yang sedang dibuka
+
+function show(index) {
+  const n = CONFIG.photos.length;
+  current = (index + n) % n;                        // % n = putar balik: setelah foto terakhir kembali ke pertama
+  const src = CONFIG.photos[current];
+  const name = captionFrom(src);
+  $("lbImg").src = src;
+  $("lbImg").alt = name;
+  $("lbTitle").textContent = name;
+  $("lbStory").textContent = (CONFIG.stories && CONFIG.stories[src]) || "";   // kalau tidak ada cerita, kosong
+  $("lbDownload").href = src;                       // tombol download menunjuk ke file fotonya
+  $("lbDownload").download = src.split("/").pop();  // nama file saat tersimpan = nama aslinya
+  $("lightbox").hidden = false;                     // tampilkan lapisan
+  document.body.style.overflow = "hidden";          // halaman di belakang tidak ikut ter-scroll
+}
+
+function closeLightbox() {
+  $("lightbox").hidden = true;
+  document.body.style.overflow = "";
+}
+
+
+
+$("lbClose").onclick = closeLightbox;
+$("lbPrev").onclick = () => show(current - 1);
+$("lbNext").onclick = () => show(current + 1);
+$("lightbox").onclick = e => {                      // klik area gelap di luar foto = tutup
+  if (e.target === $("lightbox")) closeLightbox();
+};
+document.addEventListener("keydown", e => {        // keyboard (berguna kalau dia buka dari laptop)
+  if ($("lightbox").hidden) return;
+  if (e.key === "Escape") closeLightbox();
+  if (e.key === "ArrowLeft") show(current - 1);
+  if (e.key === "ArrowRight") show(current + 1);
+});
+
+// 2) Countdown: selisih waktu (milidetik) antara tanggal ulang tahun dan sekarang.
+//    Memakai jam di perangkat DIA, jadi pas jam 00:00 di tempat dia, tulisannya berubah.
+const target = new Date(CONFIG.birthday).getTime();
+function tick() {
+  const diff = target - Date.now();
+  if (diff <= 0) {                                  // sudah lewat = hari-H
+    $("countdown").textContent = "🎉 It’s today! 🎉";
+    clearInterval(timer);                           // berhenti menghitung
+    return;
+  }
+  const d = Math.floor(diff / 864e5);               // 864e5 = jumlah milidetik dalam 1 hari
+  const h = Math.floor(diff / 36e5) % 24;           // % 24 = sisa setelah dikurangi hari penuh
+  const m = Math.floor(diff / 6e4) % 60;
+  const s = Math.floor(diff / 1e3) % 60;
+  $("countdown").innerHTML = [["days", d], ["hours", h], ["min", m], ["sec", s]]
+    .map(([label, value]) => `<div><b>${value}</b>${label}</div>`).join("");
+}
+const timer = setInterval(tick, 1000);              // jalankan tick() tiap 1 detik
+tick();                                             // jalankan sekali langsung, biar tidak kosong 1 detik
+
+// 3) Tombol surprise: tampilkan bagian tersembunyi, geser ke sana, lalu confetti
+$("openBtn").onclick = () => {
+  $("surprise").classList.add("show");              // CSS .show mengubah display:none jadi tampil
+  $("surprise").scrollIntoView({ behavior: "smooth" });
+  $("openBtn").style.display = "none";
+  confetti();
+};
+
+// 4) Tombol alasan: tiap klik menampilkan alasan berikutnya (i = nomor alasan saat ini)
+let i = 0;
+$("reasonBtn").onclick = () => {
+  if (i < CONFIG.reasons.length) {
+    $("reason").textContent = `${i + 1}. ${CONFIG.reasons[i]}`;
+    i++;
+    if (i === CONFIG.reasons.length) $("reasonBtn").textContent = "One more? ♡";
+  } else {
+    $("reason").textContent = "…and a thousand more reasons I haven’t said yet.";
+    confetti();
+  }
+};
+
+// 5) Confetti: gambar kotak-kotak warna jatuh di <canvas>, digerakkan ulang ±4 detik
+function confetti() {
+  // Hormati pengguna yang mematikan animasi di pengaturan HP-nya
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const c = $("confetti"), ctx = c.getContext("2d");
+  c.width = innerWidth; c.height = innerHeight;
+  const colors = ["#e0457b", "#f7b2c8", "#b9a2f0", "#ffd166", "#ffffff"];
+  // Buat 140 keping; tiap keping punya posisi acak (x,y), ukuran (r), dan kecepatan (vx,vy)
+  const bits = Array.from({ length: 140 }, () => ({
+    x: Math.random() * c.width, y: -20 - Math.random() * c.height * .5,
+    r: 4 + Math.random() * 5, vx: -1 + Math.random() * 2, vy: 2 + Math.random() * 3,
+    col: colors[Math.floor(Math.random() * colors.length)]
+  }));
+  let frames = 0;
+  (function draw() {
+    ctx.clearRect(0, 0, c.width, c.height);          // hapus gambar frame sebelumnya
+    bits.forEach(b => {
+      b.x += b.vx; b.y += b.vy;                      // geser sedikit tiap frame = terlihat jatuh
+      ctx.fillStyle = b.col;
+      ctx.fillRect(b.x, b.y, b.r, b.r * 1.6);
+    });
+    if (++frames < 260) requestAnimationFrame(draw); // ulangi ±60 kali/detik, berhenti setelah 260 frame
+    else ctx.clearRect(0, 0, c.width, c.height);
+  })();
+
+}
+
+// 6) Lagu: baru mulai saat tombol ditekan (browser memblokir suara otomatis)
+const audio = $("song");
+audio.src = CONFIG.song.file;                        // arahkan pemutar ke file lagunya
+$("songTitle").textContent = `🎵 ${CONFIG.song.title}`;
+
+$("songBtn").onclick = () => {
+  if (audio.paused) {                                // paused = true kalau lagu sedang tidak jalan
+    audio.play()
+      .then(() => $("songBtn").textContent = "⏸ Pause")           // berhasil: tombol jadi Pause
+      .catch(() => $("songBtn").textContent = "Can’t play the song"); // gagal (mis. file tidak ketemu)
+  } else {
+    audio.pause();
+    $("songBtn").textContent = "▶ Play";
+  }
+};
+audio.onended = () => { $("songBtn").textContent = "▶ Play"; };   // lagu habis: tombol kembali ke Play
+
+
+
+
+</script>
+</body>
+</html>
